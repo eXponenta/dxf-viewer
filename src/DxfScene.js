@@ -1,3 +1,4 @@
+//@ts-check
 import { DynamicBuffer, NativeType } from "./DynamicBuffer.js"
 import { BatchingKey } from "./BatchingKey.js"
 import { Matrix3, Vector2 } from "three"
@@ -10,6 +11,7 @@ import { HatchCalculator, HatchStyle } from "./HatchCalculator.js"
 import { LookupPattern, Pattern } from "./Pattern.js"
 import "./patterns/index.js"
 import earcut from "earcut"
+import { tesselate } from "tess2-ts"
 
 
 /** Use 16-bit indices for indexed geometry. */
@@ -1112,17 +1114,22 @@ export class DxfScene {
         }
 
         if (entity.isSolid) {
-            const coords = this._TransformBoundaryLoop(filteredBoundaryLoops[0], transform)
-            const holes = []
-            for (let i = 1; i < filteredBoundaryLoops.length; i++) {
-                holes.push(coords.length / 2)
-                this._TransformBoundaryLoop(filteredBoundaryLoops[i], transform, coords)
+            const contours = filteredBoundaryLoops.map( loop => this._TransformBoundaryLoop(loop, transform, []) );
+
+            const res = tesselate({
+                contours: contours,
+                polySize: 3, // default
+                vertexSize: 2, // default
+                strict: true // default, enable mesh validation 
+            });
+
+            const vertices = [];
+            for( let i = 0; i < res.vertices.length; i+= 2 ) {
+                vertices.push( new Vector2(res.vertices[i + 0], res.vertices[i + 1]))
             }
-            const indices = earcut(coords, holes)
-            const vertices = []
-            for (const loop of filteredBoundaryLoops) {
-                vertices.push(...loop)
-            }
+
+            const indices = res.elements;
+
             yield new Entity({
                 type: Entity.Type.TRIANGLES,
                 vertices, indices, layer, color
