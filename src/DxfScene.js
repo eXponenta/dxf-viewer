@@ -1116,19 +1116,28 @@ export class DxfScene {
         if (entity.isSolid) {
             const contours = filteredBoundaryLoops.map( loop => this._TransformBoundaryLoop(loop, transform, []) );
 
-            const res = tesselate({
-                contours: contours,
-                polySize: 3, // default
-                vertexSize: 2, // default
-                strict: true // default, enable mesh validation 
-            });
+            let indices = null
+            let vertices = null
 
-            const vertices = [];
-            for( let i = 0; i < res.vertices.length; i+= 2 ) {
-                vertices.push( new Vector2(res.vertices[i + 0], res.vertices[i + 1]))
+            if( contours.length === 1 ) {
+                vertices = filteredBoundaryLoops[0]
+                indices = earcut(contours[0], [])
+
+            } else {
+                const res = tesselate({
+                    contours: contours,
+                    polySize: 3, // default
+                    vertexSize: 2, // default
+                    strict: true // default, enable mesh validation 
+                });
+
+                vertices = [];
+                for( let i = 0; i < res.vertices.length; i+= 2 ) {
+                    vertices.push( new Vector2(res.vertices[i + 0], res.vertices[i + 1]) )
+                }
+
+                indices = res.elements;
             }
-
-            const indices = res.elements;
 
             yield new Entity({
                 type: Entity.Type.TRIANGLES,

@@ -103,6 +103,9 @@ EntityParser.prototype.parseEntity = function(scanner, curr) {
                 entity.seedPoints = []
             }
             break;
+        case 453: 
+            entity.hasGradients = curr.value == 2
+            break;
 
         default: // check common entity attributes
             helpers.checkCommonEntityProperties(entity, curr, scanner);
