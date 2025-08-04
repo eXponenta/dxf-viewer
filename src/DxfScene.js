@@ -1073,7 +1073,13 @@ export class DxfScene {
 
         const style = entity.hatchStyle ?? 0
         const layer = this._GetEntityLayer(entity, blockCtx)
-        const color = this._GetEntityColor(entity, blockCtx)
+        let color = this._GetEntityColor(entity, blockCtx)
+
+        if( entity.gradient ) {
+            color = entity.gradient.color1;
+            console.log("Only one color gradient color is supported yet")
+        }
+
         const transform = this._GetEntityExtrusionTransform(entity)
 
         let filteredBoundaryLoops = null

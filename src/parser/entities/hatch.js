@@ -11,6 +11,7 @@ EntityParser.prototype.parseEntity = function(scanner, curr) {
     let numBoundaryLoops = 0;
     let numDefinitionLines = 0;
     let numSeedPoints = 0;
+    let hasGradient = 0;
 
     curr = scanner.next();
     while(curr !== 'EOF') {
@@ -104,10 +105,14 @@ EntityParser.prototype.parseEntity = function(scanner, curr) {
             }
             break;
         case 450: 
-            entity.hasGradients = curr.value > 0
+            hasGradient = entity.hasGradients = curr.value > 0
             break;
 
         default: // check common entity attributes
+            if( hasGradient ) {
+                ParseGradient( entity, curr, scanner )
+            }
+
             helpers.checkCommonEntityProperties(entity, curr, scanner);
             break;
         }
@@ -116,6 +121,54 @@ EntityParser.prototype.parseEntity = function(scanner, curr) {
 
     return entity;
 };
+
+function ParseGradient( entity, curr, scanner ) {
+    const grad = entity.gradient || {
+        rotation: 0,
+        centered: true,
+        singleColor: true,
+        tint: 0,
+        name: "LINEAR",
+        colorCount: 1,
+        color1: -1,
+        color2: -1,
+    };
+
+    const { code, value } = curr;
+    switch(code) {
+        case 460:
+            grad.rotation = value * Math.PI / 180;
+            break
+        case 461:
+            grad.centered = value > 0;
+            break;
+        case 452:
+            grad.singleColor = value > 0;
+            break;
+        case 462:
+            grad.tint = value;
+            break;
+        case 470:
+            grad.name = value;
+            break;
+        case 453:
+            grad.colorCount = value;
+            break;
+
+        case 63:
+        case 412: {
+            const color = code == 63 ? helpers.getAcadColor(value) : value;
+
+            if( grad.color1 < 0 ) {
+                grad.color1 = grad.color2 = color;
+            } else {
+                grad.color2 = color;
+            }
+            break;
+        }
+    }
+    entity.gradient = grad;
+}
 
 function ParseBoundaryLoop(curr, scanner) {
     let entity = null
