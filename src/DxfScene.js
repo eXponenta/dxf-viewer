@@ -344,6 +344,8 @@ export class DxfScene {
             break
         case "HATCH":
             renderEntities = this._DecomposeHatch(entity, blockCtx)
+        case "MESH":
+            renderEntities = this._DecomposeHatchMesh(entity, blockCtx)
             break
         default:
             console.log("Unhandled entity type: " + entity.type)
@@ -1061,6 +1063,34 @@ export class DxfScene {
             result.push(v.y)
         }
         return result
+    }
+
+    *_DecomposeHatchMesh(entity, blockCtx) {
+        const style = entity.hatchStyle ?? 0
+        const layer = this._GetEntityLayer(entity, blockCtx)
+        const indices = entity.indices
+        let vertices = []
+
+        let color = this._GetEntityColor(entity, blockCtx)
+
+        if( entity.gradient ) {
+            color = entity.gradient.color1;
+            console.log("Only one color gradient color is supported yet")
+        }
+
+        const varray = entity.vertices;
+        if( typeof(varray[0]) === "number" ) {
+            for( let i = 0; i < varray.length; i+= 2 ) {
+                vertices.push( new Vector2(varray[i], varray[i+1] ))
+            }
+        } else {
+            vertices = varray;
+        }
+
+        yield new Entity({
+            type: Entity.Type.TRIANGLES,
+            vertices, indices, layer, color
+        })
     }
 
     *_DecomposeHatch(entity, blockCtx) {

@@ -1,8 +1,9 @@
 import DxfParser from "./parser/DxfParser.js"
-
+import SDCFParser from "./sdcf/SDCFParser.js"
 
 const PARSER = [
     DxfParser,
+    SDCFParser,
 ]
 
 /** Fetches and parses DXF file. */
