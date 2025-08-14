@@ -58,6 +58,21 @@ export default function DxfParser() {
     registerDefaultEntityHandlers(this);
 }
 
+DxfParser.validate = function ( buffer ){
+    const decoder = new TextDecoder("utf-8", { fatal: true });
+    const slice = buffer.slice(0, 64);
+    try {
+        const part = decoder.decode(slice, { });
+        const tokens = part.split(/\r\n|\r|\n/g).map((e) => e.trim());
+
+        return tokens.includes("$ACADVER");
+
+    } catch(e) {
+    }
+    
+    return false;
+}
+
 DxfParser.prototype.parse = function(source, done) {
     throw new Error("read() not implemented. Use readSync()");
 };
@@ -68,6 +83,12 @@ DxfParser.prototype.registerEntityHandler = function(handlerType) {
 }
 
 DxfParser.prototype.parseSync = function(source) {
+
+    if( source instanceof ArrayBuffer || ArrayBuffer.isView(source) ) {
+        const d = new TextDecoder("utf-8");
+        source = d.decode(source);        
+    }
+
     if(typeof(source) === 'string') {
         return this._parse(source);
     }else {

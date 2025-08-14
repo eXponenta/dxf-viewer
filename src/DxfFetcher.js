@@ -1,5 +1,10 @@
 import DxfParser from "./parser/DxfParser.js"
 
+
+const PARSER = [
+    DxfParser,
+]
+
 /** Fetches and parses DXF file. */
 export class DxfFetcher {
     constructor(url, encoding = "utf-8") {
@@ -16,15 +21,15 @@ export class DxfFetcher {
         let receivedSize = 0
         //XXX streaming parsing is not supported in dxf-parser for now (its parseStream() method
         // just accumulates chunks in a string buffer before parsing. Fix it later.
-        let buffer = ""
-        let decoder = new TextDecoder(this.encoding)
+        const buffer = []
+
         while(true) {
             const {done, value} = await reader.read()
             if (done) {
-                buffer += decoder.decode(new ArrayBuffer(0), {stream: false})
                 break
             }
-            buffer += decoder.decode(value, {stream: true})
+
+            buffer.push( value );
             receivedSize += value.length
             if (progressCbk !== null) {
                 progressCbk("fetch", receivedSize, totalSize)
@@ -34,7 +39,24 @@ export class DxfFetcher {
         if (progressCbk !== null) {
             progressCbk("parse", 0, null)
         }
-        const parser = new DxfParser()
-        return parser.parseSync(buffer)
+
+        let pointer = 0;
+        const total = new Uint8Array(receivedSize);
+
+        for( const part of buffer ) {
+            total.set(part, pointer)
+            pointer += part.byteLength;
+        }
+
+        let parserInstance = null;
+        for( const Parser of PARSER ) {
+            if( Parser.validate( total ) ) {
+                parserInstance = new Parser();
+                console.log("Use parser:" + Parser.name);
+                break;
+            }
+        }
+
+        return parserInstance.parseSync(total)
     }
 }

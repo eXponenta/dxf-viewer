@@ -706,7 +706,7 @@ DxfViewer.DefaultOptions = {
     /** Simpler version of colorCorrection - just invert pure white or black entities if they are
      * invisible on current background color.
      */
-    blackWhiteInversion: true,
+    blackWhiteInversion: false,
     /** Size in pixels for rasterized points (dot mark). */
     pointSize: 2,
     /** Scene generation options. */
