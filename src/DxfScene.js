@@ -2344,16 +2344,20 @@ export class DxfScene {
     _BuildScene() {
         let verticesSize = 0
         let indicesSize = 0
-        let transformsSize = 0
+        let i32indicesSize = 0;
+        let transformsSize = 0;
+
         this.batches.each(b => {
             verticesSize += b.GetVerticesBufferSize()
-            indicesSize += b.GetIndicesBufferSize()
+            indicesSize += b.GetIndicesBufferSize(false)
+            i32indicesSize += b.GetIndicesBufferSize(true)
             transformsSize += b.GetTransformsSize()
         })
 
         const scene = {
             vertices: new ArrayBuffer(verticesSize),
             indices: new ArrayBuffer(indicesSize),
+            i32indices: new ArrayBuffer(i32indicesSize),
             transforms: new ArrayBuffer(transformsSize),
             batches: [],
             layers: [],
@@ -2367,6 +2371,10 @@ export class DxfScene {
             verticesOffset: 0,
             indices: new Uint16Array(scene.indices),
             indicesOffset: 0,
+            
+            i32indices: new Uint32Array(scene.i32indices),
+            i32indicesOffset: 0,
+
             transforms: new Float32Array(scene.transforms),
             transformsOffset: 0
         }
@@ -2430,9 +2438,12 @@ class RenderBatch {
      * @return {IndexedChunkWriter}
      */
     PushChunk(verticesCount) {
-        if (verticesCount > INDEXED_CHUNK_SIZE) {
-            throw new Error("Vertices count exceeds chunk limit: " + verticesCount)
-        }
+        /**
+         * Allow use i32 chunks
+         */
+        // if (verticesCount > INDEXED_CHUNK_SIZE) {
+        //     throw new Error("Vertices count exceeds chunk limit: " + verticesCount)
+        // }
         /* Find suitable chunk with minimal remaining space to fill them as fully as possible. */
         let curChunk = null
         let curSpace = 0
@@ -2512,12 +2523,19 @@ class RenderBatch {
     }
 
     /** @return Indices buffer required size in bytes. */
-    GetIndicesBufferSize() {
+    GetIndicesBufferSize( computeI32 = false ) {
         if (this.key.IsIndexed()) {
             let size = 0
             for (const chunk of this.chunks) {
-                size += chunk.indices.GetSize()
+                if( computeI32 === chunk.is32Bits ) {
+                    size += chunk.indices.GetSize()
+                }
             }
+
+            if( computeI32 ) {
+                return size * Uint32Array.BYTES_PER_ELEMENT;
+            } 
+
             return size * Uint16Array.BYTES_PER_ELEMENT
         } else {
             return 0
@@ -2746,14 +2764,26 @@ class IndexedChunk {
         if (initialCapacity < 16) {
             initialCapacity = 16
         }
+
+        /**
+         * Allow use i32 as single chunk what can't be merged for big mesh 
+         */
+        this.is32Bits = initialCapacity >= INDEXED_CHUNK_SIZE;
         /* Average two indices per vertex. */
-        this.indices = new DynamicBuffer(NativeType.UINT16, initialCapacity * 2)
+        this.indices = new DynamicBuffer(this.is32Bits ? NativeType.UINT32 : NativeType.UINT16, initialCapacity * 2)
         /* Two components per vertex. */
         this.vertices = new DynamicBuffer(NativeType.FLOAT32, initialCapacity * 2)
     }
 
     Serialize(buffers) {
-        const chunk = {}
+        const chunk = {
+            verticesOffset: 0,
+            verticesSize: 0,
+            indicesOffset: 0,
+            indicesSize: 0,
+            is32Bits: this.is32Bits,
+        }
+
         {
             const size = this.vertices.GetSize()
             chunk.verticesOffset = buffers.verticesOffset
@@ -2761,12 +2791,20 @@ class IndexedChunk {
             this.vertices.CopyTo(buffers.vertices, buffers.verticesOffset)
             buffers.verticesOffset += size
         }
-        {
-            const size = this.indices.GetSize()
+
+        const size = this.indices.GetSize()
+
+        if( !this.is32Bits ) {
             chunk.indicesOffset = buffers.indicesOffset
             chunk.indicesSize = size
             this.indices.CopyTo(buffers.indices, buffers.indicesOffset)
             buffers.indicesOffset += size
+        } else {
+            const size = this.indices.GetSize()
+            chunk.indicesOffset = buffers.i32indicesOffset
+            chunk.indicesSize = size
+            this.indices.CopyTo(buffers.i32indices, buffers.i32indicesOffset)
+            buffers.i32indicesOffset += size
         }
         return chunk
     }

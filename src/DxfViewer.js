@@ -217,6 +217,7 @@ export class DxfViewer {
                      ${this.blocks.size} blocks,
                      vertices ${scene.vertices.byteLength} B,
                      indices ${scene.indices.byteLength} B
+                     i32Indices ${scene.i32indices.byteLength} B
                      transforms ${scene.transforms.byteLength} B`)
 
         /* Instantiate all entities. */
@@ -774,10 +775,14 @@ class Batch {
                 const verticesArray =
                     new Float32Array(scene.vertices,
                                      rawChunk.verticesOffset * Float32Array.BYTES_PER_ELEMENT,
-                                     rawChunk.verticesSize)
+                                     rawChunk.verticesSize);
+
+                const is32indices = rawChunk.is32Bits;
+                const Ctor = is32indices ? Uint32Array: Uint16Array;
+                const source = is32indices ? scene.i32indices : scene.indices;
                 const indicesArray =
-                    new Uint16Array(scene.indices,
-                                    rawChunk.indicesOffset * Uint16Array.BYTES_PER_ELEMENT,
+                    new Ctor(source,
+                                    rawChunk.indicesOffset * Ctor.BYTES_PER_ELEMENT,
                                     rawChunk.indicesSize)
                 this.chunks.push({
                     vertices: new three.BufferAttribute(verticesArray, 2),
