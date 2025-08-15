@@ -67,6 +67,58 @@ const DEFAULT_VARS = {
     DIMZIN: 8, //XXX 0 for imperial,
 }
 
+class LastEqualBatchContainer {
+    constructor( comparer ) {
+        this._comparator = comparer;
+        this._list = [];
+    }
+
+    insert(batch) {
+        this._list.push( batch );
+    }
+
+    find({ key }) {
+        /**
+         * Allow find last batcked batch for this key, but that in same geometry tree
+         * 
+         * Ex:
+         *    line ( green )
+         *    line ( red ) < --- got this when needs store line red, another way will caompare head only
+         *    hatch ( blue )
+         *    line 
+         *    hatch
+         *
+         */
+        for( let i = this._list.length - 1; i > 0; i -- ) {
+            let target = this._list[i]
+            
+            // we not find top
+            // passivate low down
+            if( target.key.CompareGeometryOnly( key ) > 0 ) {
+                return null;
+            }
+
+            if( target.key.Compare( key ) === 0 ) {
+                return target;
+            }
+        }
+
+        return null
+    }
+
+    remove(batch) {
+        this._list = this._list.filter(( b ) => b !== batch)
+    }
+
+    get size() {
+        return this._list.length;
+    }
+
+    each( callback ) {
+        this._list.forEach( callback );
+    }
+}
+
 /** This class prepares an internal representation of a DXF file, optimized fo WebGL rendering. It
  * is decoupled in such a way so that it should be possible to build it in a web-worker, effectively
  * transfer it to the main thread, and easily apply it to a Three.js scene there.
@@ -84,7 +136,18 @@ export class DxfScene {
         */
         this.origin = null
         /* RBTree<BatchingKey, RenderBatch> */
-        this.batches = new RBTree((b1, b2) => b1.key.Compare(b2.key))
+
+        if( this.options.stableSorting ) {
+            // use step-by-step batch
+            // this usefull when needs to render as in file
+            // a lot of batches can be generated
+            // for lines batch can be use without sorting rulle
+            
+            this.batches = new LastEqualBatchContainer()
+        } else {
+            this.batches = new RBTree((b1, b2) => b1.key.Compare(b2.key))
+        }
+
         /* Indexed by layer name, value is layer object from parsed DXF. */
         this.layers = new Map()
         /* Indexed by block name, value is Block. */
@@ -344,6 +407,7 @@ export class DxfScene {
             break
         case "HATCH":
             renderEntities = this._DecomposeHatch(entity, blockCtx)
+            break;
         case "MESH":
             renderEntities = this._DecomposeHatchMesh(entity, blockCtx)
             break
@@ -2899,4 +2963,6 @@ DxfScene.DefaultOptions = {
     suppressPaperSpace: true,
     /** Text rendering options. */
     textOptions: TextRenderer.DefaultOptions,
+    /** Use draw order how presented in list, batch will be generated unoptimal*/
+    stableSorting: true,
 }

@@ -42,6 +42,15 @@ export class BatchingKey {
         return CompareValues(this.lineType, other.lineType)
     }
 
+    CompareGeometryOnly( other ) {
+        let c = CompareValues(this.geometryType, other.geometryType)
+        if (c !== 0) {
+            return c
+        }
+        return CompareValues(this.lineType, other.lineType)
+        
+    }
+
     IsIndexed() {
         return this.geometryType === BatchingKey.GeometryType.INDEXED_LINES ||
                this.geometryType === BatchingKey.GeometryType.INDEXED_TRIANGLES
