@@ -462,7 +462,7 @@ export class DxfScene {
 
     *_DecomposeLine(entity, blockCtx) {
         /* start/end width, bulge - seems cannot be present, at least with current parser */
-        if (entity.vertices.length !== 2) {
+        if (entity.vertices.length !== 2 && !entity.batchLine) {
             return
         }
         const layer = this._GetEntityLayer(entity, blockCtx)

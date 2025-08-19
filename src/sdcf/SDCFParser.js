@@ -41,6 +41,7 @@ export default class SDCFParser {
             text: this._adaptText,
             mtext: this._adaptText,
             line: this._adaptLine,
+            polyline: this._adaptPLine,
             mesh: (v) => v,
         }
     }
@@ -157,6 +158,32 @@ export default class SDCFParser {
             color: val.color === -1 ? 0xffffff : val.color,
             type: val.type.toUpperCase(),
         };
+    }
+
+    _adaptPLine = (val) => {
+        // our polyline is line segments
+        // but can be step by step, instead of line ( when pairs of vertex )
+        // needs double 
+        const batch =  val.batch ?? [ val.points ];
+        const vertices = [];
+
+        for( const b of batch ) {
+            for( let i = 0; i < b.length - 1; i ++ ) {
+                const cur = b[ i ];
+                const next = b[ i + 1 ];
+
+                vertices.push({ x: cur[0], y: cur[1], z: cur[2] || 0 })
+                vertices.push({ x: next[0], y: next[1], z: next[2] || 0 })
+            }
+        }
+
+        return  Object.assign(val,{
+            type: "LINE", // render as lines!
+            batchLine: true, // INPORTANT
+            extrusionDirection: { x: 0, y: 0, z: 1 },
+            vertices: vertices,
+        })
+
     }
 
     _adaptLine = (val) => {
